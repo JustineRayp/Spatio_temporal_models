@@ -2,14 +2,17 @@
 import numpy as np
 from load_data import *
 from Linear_prediction import *
+
 #%%
 #Define the logistic CA model
 
 #calculate suitability
-def calculate_suitability(i,j):
-    return 1 / (1 + np.exp(-linear_predictor(i,j)))
+def calculate_suitability(i,j, coefficients, intercept, proxy_dict):
+    z_ij = linear_predictor(i, j, coefficients, intercept, proxy_dict)
+    probability = 1 / (1 + np.exp(-z_ij))
+    return probability
 
-def neighborhood_density(array, i, j):
+def neighborhood_density(array, i, j, neighborhood_size=5):
     """
     Calculate the density of 1s around a specific cell in a numpy array,
     excluding the cell itself from the calculation.
@@ -17,29 +20,31 @@ def neighborhood_density(array, i, j):
     :param array: numpy array
     :param i: row index of the cell
     :param j: column index of the cell
+    :param neighborhood_size: size of the neighborhood (must be an odd number)
     :return: density of 1s in the neighborhood
     """
-    # Define the size of the neighborhood around the cell
-    neighborhood_size = 5  # 5x5 neighborhood
+    # Ensure the neighborhood_size is an odd number
+    if neighborhood_size % 2 == 0:
+        raise ValueError("neighborhood_size must be an odd number")
+
+    # Calculate the half size
+    half_size = neighborhood_size // 2
 
     # Calculate the start and end indices for rows and columns
-    row_start = max(0, i - 2)
-    row_end = min(array.shape[0], i + 3)
-    col_start = max(0, j - 2)
-    col_end = min(array.shape[1], j + 3)
+    row_start = max(0, i - half_size)
+    row_end = min(array.shape[0], i + half_size + 1)
+    col_start = max(0, j - half_size)
+    col_end = min(array.shape[1], j + half_size + 1)
 
     # Extract the neighborhood
     neighborhood = array[row_start:row_end, col_start:col_end]
 
     # Calculate the number of 1s and exclude the central cell if it's in the range
     if 0 <= i - row_start < neighborhood.shape[0] and 0 <= j - col_start < neighborhood.shape[1]:
-        # Temporarily set the central cell to zero for counting 1s
         original_value = neighborhood[i - row_start, j - col_start]
         neighborhood[i - row_start, j - col_start] = 0
         num_ones = np.sum(neighborhood == 1)
-        # Restore the original value
         neighborhood[i - row_start, j - col_start] = original_value
-        # Decrease total_cells by 1 since the central cell is excluded
         total_cells = neighborhood.size - 1
     else:
         num_ones = np.sum(neighborhood == 1)
@@ -55,11 +60,12 @@ def linear_predictor(i, j, coefficients, intercept, proxy_dict):
     # Start with the intercept
     linear_pred = intercept
     
-    # Iterate over each coefficient and corresponding proxy key
-    for idx, key in enumerate(proxy_dict.keys()):
-        # Ensure we do not exceed the number of coefficients
+    # proxy keys as input
+    proxy_keys = proxy_dict.keys()
+
+    # Calculate the linear predictor
+    for idx, key in enumerate(proxy_keys):
         if idx < len(coefficients):
-            # Add to the linear predictor the product of coefficient and the value at (i, j) in the proxy array
             linear_pred += coefficients[idx] * proxy_dict[key][i, j]
         else:
             raise IndexError(f"Index {idx} out of range for coefficients list.")
@@ -68,19 +74,34 @@ def linear_predictor(i, j, coefficients, intercept, proxy_dict):
 
 def stochastic_perturbation():
     alpha = 1
-    lambda_val = np.random.uniform(low=1e-10, high=1)
-    return 1 + np.log(lambda_val) * alpha
+    lambda_val = np.random.uniform(1e-10, 1)
+    return 1 + (-np.log(lambda_val)) ** alpha
 
-def land_constraint(i,j, land_use_dict):
-    if land_use_dict == {}:
-        return 1
+def land_constraint(i, j, land_use_dict):
+    """
+    Check land use constraints. Return 0 if the land use natural or the land use water has a value of 1 at the given location.
+    Return 1 otherwise.
+    
+    Parameters:
+    i (int): Row index of the cell.
+    j (int): Column index of the cell.
+    land_use_dict (dict): Dictionary containing land use arrays.
+    
+    Returns:
+    int: 0 if the land use natural or the land use water has a value of 1, 1 otherwise.
+    """
+    for land_use, array in land_use_dict.items():
+        if array[i, j] == 1:
+            return 0
+    return 1
 
 def development_probability(i, j, array, proxy_dict, land_use_dict, coefficients, intercept):
-    pg_ij = linear_predictor(i,j, coefficients, intercept, proxy_dict)
+    pg_ij = calculate_suitability(i,j, coefficients, intercept, proxy_dict)
     omega_ij = neighborhood_density(array, i, j)
     ra_ij = stochastic_perturbation()
     land_ij = land_constraint(i,j, land_use_dict)
-    return pg_ij * omega_ij * ra_ij * land_ij
+    prob_development = pg_ij * omega_ij * ra_ij * land_ij
+    return prob_development
 
 def calculate_overall_accuracy(predicted_array, actual_array):
     # Calculate the number of correctly classified cells
@@ -155,11 +176,13 @@ def run_model(data_dict, proxy_dict, land_use_dict, first_year, last_year, coeff
 #%%
 
 shapefiles = ['natural', 'waterways']
-data_dict, feature_dict, landuse_dict = generate_data(False, shapefiles)
+data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
 
 first_year = 1984
 last_year = 2013
 
 coefficients, intercept = find_coef_and_intercept(data_dict, feature_dict, first_year, last_year)
+#coefficients = 
 predicted_array, oa, fom = run_model(data_dict, feature_dict, landuse_dict, first_year, last_year, coefficients, intercept)
 # %%
+print(oa, fom)
