@@ -1,10 +1,11 @@
 #%%
+import os
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
 import scipy.ndimage
-import os
+
 
 #%%
 def load_tiff_to_numpy(tiff_path):
@@ -19,9 +20,7 @@ def load_tiff_to_numpy(tiff_path):
     """
     # Open the TIFF file
     with rasterio.open(tiff_path) as src:
-        # Read the raster data from the first band
-        array_data = src.read(1)  # Change the band number if needed
-
+        array_data = src.read(1)
     return array_data
 
 def shape_path_to_array(shape_paths):
@@ -60,12 +59,12 @@ def plot_shapefile_and_save(shapefile_path, output_path):
     plt.savefig(output_path)  # Save the plot as a TIFF file
 
 def shape_path_to_array(shape_paths):
-    base_path_input = 'C:\\Users\\wanne\\OneDrive\\Documents\\STM\\Spatio_temporal_models\\Beijing_landuse\\Beijing-shp\\shape\\'
-    base_path_output = 'C:\\Users\\wanne\\OneDrive\\Documents\\STM\\Spatio_temporal_models\\spatialProxy_extra\\SpatialProxy_'
-    arrays = []
+    base_path_input = '/Users/grayp/Documents/Justine/2E_MA_BIO-IR/2e semester/Spatio-temporal Models/Project/Spatio_temporal_models/Beijing_landuse/Beijing-shp/shape/'
+    base_path_output = '/Users/grayp/Documents/Justine/2E_MA_BIO-IR/2e semester/Spatio-temporal Models/Project/Spatio_temporal_models/spatialProxy_extra/'
+    
     for path in shape_paths:
-        file_path = base_path_input + path + '.shp'
-        output_path = base_path_output + path + '.tif'
+        file_path = os.path.join(base_path_input, path + '.shp')
+        output_path = os.path.join(base_path_output, path + '.tif')
         plot_shapefile_and_save(file_path, output_path)
 
 def generate_year_dict(folder_path):
@@ -153,37 +152,134 @@ def alter_map(og_dictionary, new_dictionary):
 
     return modified_dict
 
+def normalize_array(input_array, nodata_value=-3e+38):
+    # Ignore the no-data values during normalization
+    mask = (input_array > nodata_value)
+    min_val = np.min(input_array[mask])
+    max_val = np.max(input_array[mask])
+    normalized_array = input_array.copy()
+    normalized_array[mask] = (input_array[mask] - min_val) / (max_val - min_val)
+    return normalized_array
+
+
+# Function to normalize all arrays in a dictionary
+def normalize_dict(data_dict):
+    normalized_dict = {}
+    for key, array in data_dict.items():
+        normalized_dict[key] = normalize_array(array)
+    return normalized_dict
+
+def z_score_normalize_array(input_array, nodata_value=-3e+38):
+    # Ignore the no-data values during normalization
+    mask = (input_array > nodata_value)
+    mean_val = np.mean(input_array[mask])
+    std_val = np.std(input_array[mask])
+    normalized_array = input_array.copy()
+    normalized_array[mask] = (input_array[mask] - mean_val) / std_val
+    return normalized_array
+
+# Function to normalize all arrays in a dictionary using Z-score normalization
+def normalize_dict_z_score(data_dict):
+    normalized_dict = {}
+    for key, array in data_dict.items():
+        normalized_dict[key] = z_score_normalize_array(array)
+    return normalized_dict
+
 
 def generate_data(landuse, shapefiles):
-
     data_path = 'BJ_urbanTS'
     feature_path = 'spatialProxy'
     feature_path_extra = 'spatialProxy_extra'
-
     file_name = 'SpatialProxy_'
-
     data_dict = generate_year_dict(data_path)
     feature_dict = generate_features_dict(feature_path, file_name)
-
     landuse_dict = {}
-
-    if landuse == True:
+    if landuse:
         shape_path_to_array(shapefiles)
         new_feature_dict = generate_features_dict(feature_path_extra, file_name)
         data_dict = alter_map(data_dict, new_feature_dict)
         feature_dict = alter_map(feature_dict, new_feature_dict)
-        
-        landuse_dict = {}
-        for key in shapefiles:
-            # Check if the key is present in new_feature_dict
-            if key in new_feature_dict:
-                # Add the key-value pair to landuse_dict
-                landuse_dict[key] = new_feature_dict[key]
-                # Remove the key-value pair from new_feature_dict
-                del new_feature_dict[key]
-
-
+        landuse_dict = {key: new_feature_dict[key] for key in shapefiles if key in new_feature_dict}
+    
+    # Normalize data and feature dictionaries
+    #data_dict = normalize_dict(data_dict, nodata_value)
+    feature_dict = normalize_dict_z_score(feature_dict)
+    landuse_dict = normalize_dict_z_score(landuse_dict)
+    
     return data_dict, feature_dict, landuse_dict
 
 
 # %%
+#shapefiles = ['natural', 'waterways']
+#data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
+
+# some functions to check output
+#for year, data in data_dict.items():
+#    print(f"Data for {year}:")
+#    print(data)
+#    print(data.shape)
+
+#for feature, data in feature_dict.items():
+#    print(f"Feature {feature}:")
+#    print(data)
+#    print(data.shape)
+
+#for landuse, data in landuse_dict.items():
+#    print(f"Landuse {landuse}:")
+#   print(data)
+#    print(data.shape)
+
+def print_non_nodata_values(feature_dict, nodata_value):
+    """
+    Print non no-data values from the feature dictionary.
+    
+    Parameters:
+    feature_dict (dict): Dictionary containing feature arrays.
+    nodata_value (float): The no-data value to be excluded.
+    """
+    for feature, data in feature_dict.items():
+        print(f"Feature {feature}:")
+        non_nodata_values = data[data > nodata_value]
+        if len(non_nodata_values) > 0:
+            print(non_nodata_values)
+        else:
+            print("All values are no-data values.")
+        print()
+
+# Example usage
+# nodata_value = -3e+38
+#print_non_nodata_values(feature_dict, nodata_value)
+
+def check_landuse_values(landuse_dict):
+    """
+    Check and count the number of 0s, 1s, and any other values in the landuse dictionary.
+    
+    Parameters:
+    landuse_dict (dict): Dictionary containing landuse arrays.
+    
+    Returns:
+    dict: A dictionary with counts of 0s, 1s, and other values for each landuse feature.
+    """
+    counts = {}
+    for landuse, data in landuse_dict.items():
+        unique, counts_array = np.unique(data, return_counts=True)
+        counts_dict = dict(zip(unique, counts_array))
+        other_values = {k: v for k, v in counts_dict.items() if k not in [0, 1]}
+        counts[landuse] = {
+            '0': counts_dict.get(0, 0),
+            '1': counts_dict.get(1, 0),
+            'other': other_values
+        }
+    return counts
+
+# Example usage
+#counts = check_landuse_values(landuse_dict)
+#for landuse, count in counts.items():
+ #   print(f"Landuse {landuse}:")
+ #   print(f"0s: {count['0']}, 1s: {count['1']}")
+  # if count['other']:
+   #     print("Other values:")
+   #     for value, cnt in count['other'].items():
+   #        print(f"Value: {value}, Count: {cnt}")
+    #else:
+    #    print("No other values.")
