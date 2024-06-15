@@ -1,3 +1,4 @@
+
 #%%
 import os
 import geopandas as gpd
@@ -152,6 +153,7 @@ def alter_map(og_dictionary, new_dictionary):
 
     return modified_dict
 
+#min-max normalization
 def normalize_array(input_array, nodata_value=-3e+38):
     # Ignore the no-data values during normalization
     mask = (input_array > nodata_value)
@@ -162,13 +164,7 @@ def normalize_array(input_array, nodata_value=-3e+38):
     return normalized_array
 
 
-# Function to normalize all arrays in a dictionary
-def normalize_dict(data_dict):
-    normalized_dict = {}
-    for key, array in data_dict.items():
-        normalized_dict[key] = normalize_array(array)
-    return normalized_dict
-
+#z-score normalization
 def z_score_normalize_array(input_array, nodata_value=-3e+38):
     # Ignore the no-data values during normalization
     mask = (input_array > nodata_value)
@@ -178,15 +174,16 @@ def z_score_normalize_array(input_array, nodata_value=-3e+38):
     normalized_array[mask] = (input_array[mask] - mean_val) / std_val
     return normalized_array
 
-# Function to normalize all arrays in a dictionary using Z-score normalization
-def normalize_dict_z_score(data_dict):
+def normalize_dict(data_dict, method='min-max'):
     normalized_dict = {}
     for key, array in data_dict.items():
-        normalized_dict[key] = z_score_normalize_array(array)
+        if method == 'z-score':
+            normalized_dict[key] = z_score_normalize_array(array)
+        else:
+            normalized_dict[key] = normalize_array(array)
     return normalized_dict
 
-
-def generate_data(landuse, shapefiles):
+def generate_data(landuse, shapefiles, normalization_method='min-max'):
     data_path = 'BJ_urbanTS'
     feature_path = 'spatialProxy'
     feature_path_extra = 'spatialProxy_extra'
@@ -202,42 +199,41 @@ def generate_data(landuse, shapefiles):
         landuse_dict = {key: new_feature_dict[key] for key in shapefiles if key in new_feature_dict}
     
     # Normalize landuse dictionary
-    #to create 0's and 1's for the landuse, always use min-max norm.
-    landuse_dict = normalize_dict(landuse_dict)
+    # To create 0's and 1's for the landuse, always use min-max norm.
+    landuse_dict = normalize_dict(landuse_dict, method='min-max')
 
-
-    #Noramlize feature dictinonary: choose one method
-    #min-max normalization
-    #feature_dict = normalize_dict(feature_dict)
-
-    #z-score normalization
-    feature_dict = normalize_dict_z_score(feature_dict)
+    # Normalize feature dictionary using the selected method
+    feature_dict = normalize_dict(feature_dict, method=normalization_method)
     
     return data_dict, feature_dict, landuse_dict
 
 
-# %% example usage
-#shapefiles = ['natural', 'waterways']
-#data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
 
-#print("Unique values in 'natural':", np.unique(landuse_dict['natural']))
-#print("Unique values in 'waterways':", np.unique(landuse_dict['waterways']))
-
+# %% example usage data loading
+"""
+shapefiles = ['natural', 'waterways']
+data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
+"""
 # some functions to check output
-#for year, data in data_dict.items():
-#    print(f"Data for {year}:")
-#    print(data)
-#    print(data.shape)
+"""
+for year, data in data_dict.items():
+    print(f"Data for {year}:")
+    print(data)
+    print(data.shape)
 
-#for feature, data in feature_dict.items():
-#    print(f"Feature {feature}:")
-#    print(data)
-#    print(data.shape)
+for feature, data in feature_dict.items():
+    print(f"Feature {feature}:")
+    print(data)
+    print(data.shape)
 
-#for landuse, data in landuse_dict.items():
-#    print(f"Landuse {landuse}:")
-#   print(data)
-#    print(data.shape)
+for landuse, data in landuse_dict.items():
+    print(f"Landuse {landuse}:")
+    print(data)
+    print(data.shape)
+
+print("Unique values in 'natural':", np.unique(landuse_dict['natural']))
+print("Unique values in 'waterways':", np.unique(landuse_dict['waterways']))
+"""
 
 def print_non_nodata_values(feature_dict, nodata_value):
     """
@@ -257,8 +253,10 @@ def print_non_nodata_values(feature_dict, nodata_value):
         print()
 
 # Example usage
-#nodata_value = -3e+38
-#print_non_nodata_values(feature_dict, nodata_value)
+"""
+nodata_value = -3e+38
+print_non_nodata_values(feature_dict, nodata_value)
+"""
 
 def check_landuse_values(landuse_dict):
     """
@@ -283,6 +281,7 @@ def check_landuse_values(landuse_dict):
     return counts
 
 # Example usage
+"""
 counts = check_landuse_values(landuse_dict)
 for landuse, count in counts.items():
     print(f"Landuse {landuse}:")
@@ -293,3 +292,4 @@ for landuse, count in counts.items():
             print(f"Value: {value}, Count: {cnt}")
     else:
         print("No other values.")
+"""
