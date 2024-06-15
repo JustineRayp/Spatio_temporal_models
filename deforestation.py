@@ -6,6 +6,13 @@ import matplotlib.pyplot as plt
 from load_data import *
 from model import *
 
+def development_probability_deforestation(i, j, array, proxy_dict, land_use_dict, coefficients, intercept):
+    pg_ij = calculate_suitability(i,j, coefficients, intercept, proxy_dict)
+    omega_ij = neighborhood_density(array, i, j)
+    ra_ij = stochastic_perturbation()
+    prob_development = pg_ij * omega_ij * ra_ij
+    return prob_development
+
 # Scenario 1: Unrestricted deforestation
 def land_constraint_unrestricted(i, j, land_use_dict):
     if land_use_dict['waterways'][i, j] == 1:
@@ -22,11 +29,12 @@ def land_constraint_policy_driven(i, j, land_use_dict, protection_percentage):
     return 1
 
 # Scenario 3: Allow deforestation, but also allow non-urbanized cells to be reforested
-def become_forest_probability(i, j, array, threshold=0.3):
+def become_forest_probability(i, j, array, neighbor_threshold=4, growth_threshold=0.3):
     neighborhood = array[max(0, i-1):min(array.shape[0], i+2), max(0, j-1):min(array.shape[1], j+2)]
     num_forest_neighbors = np.sum(neighborhood == 1)
-    if np.random.random() < threshold * num_forest_neighbors:
-        return 1
+    if num_forest_neighbors >= neighbor_threshold:
+        if np.random.uniform(0,1) >= growth_threshold:
+            return 1
     return 0
 
 def land_constraint_partial_protection_with_growth(i, j, land_use_dict, protection_percentage, growth_threshold=0.3):
@@ -58,7 +66,7 @@ def run_scenario(data_dict, proxy_dict, land_use_dict, first_year, last_year, co
     for i in range(rows):
         for j in range(columns):
             if proxy_dict['distance_to_Tiananmen_Square'][i, j] > 0 and start_array[i, j] == 0:
-                evaluation_score = development_probability(i, j, start_array, proxy_dict, land_use_dict, coefficients, intercept)
+                evaluation_score = development_probability_deforestation(i, j, start_array, proxy_dict, land_use_dict, coefficients, intercept) #probability without land-use constraints
                 evaluation_list.append((evaluation_score, (i, j)))
 
         evaluation_list.sort(reverse=True, key=lambda x: x[0])
@@ -106,9 +114,9 @@ def visualize_results(start_array, predicted_array, land_use_dict, title):
         for j in range(start_array.shape[1]):
             if start_array[i, j] == 1:
                 color_map_start[i, j] = urban_color
-            elif land_use_dict['waterways'][i, j] == 1:
+            elif land_use_dict['waterways'][i, j] == 1 & start_array[i,j] == 0:
                 color_map_start[i, j] = water_color
-            elif land_use_dict['natural'][i, j] == 1:
+            elif land_use_dict['natural'][i, j] == 1 & start_array[i, j] == 0:
                 color_map_start[i, j] = forest_color
 
     # Populate the color map for predicted_array
@@ -116,9 +124,9 @@ def visualize_results(start_array, predicted_array, land_use_dict, title):
         for j in range(predicted_array.shape[1]):
             if predicted_array[i, j] == 1:
                 color_map_predicted[i, j] = urban_color
-            elif land_use_dict['waterways'][i, j] == 1:
+            elif land_use_dict['waterways'][i, j] == 1 & start_array[i,j] == 0:
                 color_map_predicted[i, j] = water_color
-            elif land_use_dict['natural'][i, j] == 1:
+            elif land_use_dict['natural'][i, j] == 1 & predicted_array[i,j] == 0 :
                 color_map_predicted[i, j] = forest_color
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
