@@ -2,6 +2,7 @@
 import numpy as np
 from load_data import *
 from Linear_prediction import *
+from Linear_prediction2 import *
 
 #%%
 #Define the logistic CA model
@@ -173,16 +174,74 @@ def run_model(data_dict, proxy_dict, land_use_dict, first_year, last_year, coeff
     fom = calculate_figure_of_merit(predicted_array, end_array)
 
     return predicted_array, oa, fom
+
+
+def run_model_with_intermediate_years(data_dict, proxy_dict, land_use_dict, first_year, last_year, coefficients, intercept):
+    current_year = first_year
+    next_year = current_year + 1
+    
+    # Initialize the start array
+    current_array = data_dict['data_' + str(current_year)].copy()
+
+    while next_year <= last_year:
+        print(f"Processing year: {current_year} to {next_year}")
+
+        # Get the target array for the next year
+        target_array = data_dict['data_' + str(next_year)]
+
+        necessary_development = np.sum(target_array) - np.sum(current_array)
+
+        rows, columns = current_array.shape
+
+        evaluation_list = []
+
+        # Iterate over all cells in the current_array
+        for i in range(rows):
+            for j in range(columns):
+                # Check the conditions
+                if proxy_dict['distance_to_Tiananmen_Square'][i, j] > 0 and current_array[i, j] == 0:
+                    # Evaluate the cell using development_probability function
+                    evaluation_score = development_probability(i, j, current_array, proxy_dict, land_use_dict, coefficients, intercept)
+
+                    # Store the score along with its coordinates
+                    evaluation_list.append((evaluation_score, (i, j)))
+
+        # Sort the evaluations based on the scores in descending order
+        evaluation_list.sort(reverse=True, key=lambda x: x[0])
+
+        # Determine the number of cells to develop
+        num_cells_to_develop = int(necessary_development)
+
+        # Change the necessary amount of cells from 0 to 1 based on the highest evaluation scores
+        for idx in range(num_cells_to_develop):
+            score, (i, j) = evaluation_list[idx]
+            current_array[i, j] = 1
+
+        # Move to the next year
+        current_year = next_year
+        next_year += 1
+
+    # The final predicted array is the updated current_array
+    predicted_array = current_array
+
+    # Calculate evaluation metrics based on the last year
+    end_array = data_dict['data_' + str(last_year)]
+    oa = calculate_overall_accuracy(predicted_array, end_array)
+    fom = calculate_figure_of_merit(predicted_array, end_array)
+
+    return predicted_array, oa, fom
 #%%
 
 shapefiles = ['natural', 'waterways']
-data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
+data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles, normalization_method='z-score')
 
 first_year = 1984
 last_year = 2013
 
 coefficients, intercept = find_coef_and_intercept(data_dict, feature_dict, first_year, last_year)
+#coefficients, intercept = find_coef_and_intercept2(data_dict, feature_dict, first_year, last_year)
 #coefficients = 
-predicted_array, oa, fom = run_model(data_dict, feature_dict, landuse_dict, first_year, last_year, coefficients, intercept)
+#predicted_array, oa, fom = run_model(data_dict, feature_dict, landuse_dict, first_year, last_year, coefficients, intercept)
+predicted_array, oa, fom = run_model_with_intermediate_years(data_dict, feature_dict, landuse_dict, first_year, last_year, coefficients, intercept)
 # %%
 print(oa, fom)
