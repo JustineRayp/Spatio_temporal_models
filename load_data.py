@@ -23,7 +23,7 @@ def load_tiff_to_numpy(tiff_path):
         array_data = src.read(1)
     return array_data
 
-def shape_path_to_array(shape_paths):
+#def shape_path_to_array(shape_paths):
     """
     Takes a list of file paths leading to TIFF files and returns a list of NumPy arrays.
 
@@ -33,12 +33,12 @@ def shape_path_to_array(shape_paths):
     Returns:
     list of numpy.ndarray: List of NumPy arrays containing the raster data from each TIFF file.
     """
-    arrays = []
-    for path in shape_paths:
-        array_data = load_tiff_to_numpy(path)
-        arrays.append(array_data)
+    #arrays = []
+    #for path in shape_paths:
+    #    array_data = load_tiff_to_numpy(path)
+    #    arrays.append(array_data)
     
-    return arrays
+    #return arrays
 
 def plot_shapefile_and_save(shapefile_path, output_path):
     """
@@ -201,17 +201,27 @@ def generate_data(landuse, shapefiles):
         feature_dict = alter_map(feature_dict, new_feature_dict)
         landuse_dict = {key: new_feature_dict[key] for key in shapefiles if key in new_feature_dict}
     
-    # Normalize data and feature dictionaries
-    #data_dict = normalize_dict(data_dict, nodata_value)
+    # Normalize landuse dictionary
+    #to create 0's and 1's for the landuse, always use min-max norm.
+    landuse_dict = normalize_dict(landuse_dict)
+
+
+    #Noramlize feature dictinonary: choose one method
+    #min-max normalization
+    #feature_dict = normalize_dict(feature_dict)
+
+    #z-score normalization
     feature_dict = normalize_dict_z_score(feature_dict)
-    landuse_dict = normalize_dict_z_score(landuse_dict)
     
     return data_dict, feature_dict, landuse_dict
 
 
-# %%
+# %% example usage
 #shapefiles = ['natural', 'waterways']
 #data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
+
+#print("Unique values in 'natural':", np.unique(landuse_dict['natural']))
+#print("Unique values in 'waterways':", np.unique(landuse_dict['waterways']))
 
 # some functions to check output
 #for year, data in data_dict.items():
@@ -247,7 +257,7 @@ def print_non_nodata_values(feature_dict, nodata_value):
         print()
 
 # Example usage
-# nodata_value = -3e+38
+#nodata_value = -3e+38
 #print_non_nodata_values(feature_dict, nodata_value)
 
 def check_landuse_values(landuse_dict):
@@ -273,13 +283,13 @@ def check_landuse_values(landuse_dict):
     return counts
 
 # Example usage
-#counts = check_landuse_values(landuse_dict)
-#for landuse, count in counts.items():
- #   print(f"Landuse {landuse}:")
- #   print(f"0s: {count['0']}, 1s: {count['1']}")
-  # if count['other']:
-   #     print("Other values:")
-   #     for value, cnt in count['other'].items():
-   #        print(f"Value: {value}, Count: {cnt}")
-    #else:
-    #    print("No other values.")
+counts = check_landuse_values(landuse_dict)
+for landuse, count in counts.items():
+    print(f"Landuse {landuse}:")
+    print(f"0s: {count['0']}, 1s: {count['1']}")
+    if count['other']:
+        print("Other values:")
+        for value, cnt in count['other'].items():
+            print(f"Value: {value}, Count: {cnt}")
+    else:
+        print("No other values.")
