@@ -44,7 +44,7 @@ def find_coef_and_intercept(data_dict, proxy_dict, startyear, endyear):
 
     # Use stratified K-fold cross-validation
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    model = LogisticRegression(max_iter=10000, random_state=42)
+    model = LogisticRegression(max_iter=10000, random_state=16)
 
     # Evaluate model using cross-validation and calculate the mean AUC
     auc_scores = cross_val_score(model, features, response, cv=skf, scoring='roc_auc')
@@ -63,6 +63,7 @@ def find_coef_and_intercept(data_dict, proxy_dict, startyear, endyear):
         print(f"Coefficient for {list(proxy_dict.keys())[i]}: {coef}")
 
     return coefficients, intercept
+
 
 
 
