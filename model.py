@@ -2,7 +2,11 @@
 import numpy as np
 from load_data import *
 from Linear_prediction import *
-from Linear_prediction2 import *
+
+"""
+general remark: counter-intuitive but 0 in the forest or the waterway arrays means there IS forest or water
+
+"""
 
 #%%
 #Define the logistic CA model
@@ -231,16 +235,14 @@ def run_model_with_intermediate_years(data_dict, proxy_dict, land_use_dict, firs
 
     return predicted_array, oa, fom
 #%%
-
+# #run the model
 shapefiles = ['natural', 'waterways']
 data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles, normalization_method='z-score')
 
-first_year = 1984
+first_year = 2004
 last_year = 2013
 
 coefficients, intercept = find_coef_and_intercept(data_dict, feature_dict, first_year, last_year)
-#coefficients, intercept = find_coef_and_intercept2(data_dict, feature_dict, first_year, last_year)
-#coefficients = 
 #predicted_array, oa, fom = run_model(data_dict, feature_dict, landuse_dict, first_year, last_year, coefficients, intercept)
 predicted_array, oa, fom = run_model_with_intermediate_years(data_dict, feature_dict, landuse_dict, first_year, last_year, coefficients, intercept)
 # %%
