@@ -92,7 +92,7 @@ def land_constraint(i, j, land_use_dict):
     int: 0 if the land use natural or the land use water has a value of 1, 1 otherwise.
     """
     for land_use, array in land_use_dict.items():
-        if array[i, j] == 1:
+        if array[i, j] == 0:
             return 0
     return 1
 
