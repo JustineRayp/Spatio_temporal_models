@@ -1,4 +1,3 @@
-
 #%%
 import os
 import geopandas as gpd
@@ -209,31 +208,31 @@ def generate_data(landuse, shapefiles, normalization_method='min-max'):
 
 
 
-# %% example usage data loading
+# %% example usage
 """
 shapefiles = ['natural', 'waterways']
 data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
-"""
-# some functions to check output
-"""
-for year, data in data_dict.items():
-    print(f"Data for {year}:")
-    print(data)
-    print(data.shape)
-
-for feature, data in feature_dict.items():
-    print(f"Feature {feature}:")
-    print(data)
-    print(data.shape)
-
-for landuse, data in landuse_dict.items():
-    print(f"Landuse {landuse}:")
-    print(data)
-    print(data.shape)
 
 print("Unique values in 'natural':", np.unique(landuse_dict['natural']))
 print("Unique values in 'waterways':", np.unique(landuse_dict['waterways']))
+print(np.sum(landuse_dict['natural']))
+print(len(landuse_dict['natural']))
 """
+# some functions to check output
+#for year, data in data_dict.items():
+#    print(f"Data for {year}:")
+#    print(data)
+#    print(data.shape)
+
+#for feature, data in feature_dict.items():
+#    print(f"Feature {feature}:")
+#    print(data)
+#    print(data.shape)
+
+#for landuse, data in landuse_dict.items():
+#    print(f"Landuse {landuse}:")
+#   print(data)
+#    print(data.shape)
 
 def print_non_nodata_values(feature_dict, nodata_value):
     """
@@ -253,10 +252,8 @@ def print_non_nodata_values(feature_dict, nodata_value):
         print()
 
 # Example usage
-"""
-nodata_value = -3e+38
-print_non_nodata_values(feature_dict, nodata_value)
-"""
+#nodata_value = -3e+38
+#print_non_nodata_values(feature_dict, nodata_value)
 
 def check_landuse_values(landuse_dict):
     """
@@ -280,9 +277,10 @@ def check_landuse_values(landuse_dict):
         }
     return counts
 
+
 # Example usage
+#counts = check_landuse_values(landuse_dict)
 """
-counts = check_landuse_values(landuse_dict)
 for landuse, count in counts.items():
     print(f"Landuse {landuse}:")
     print(f"0s: {count['0']}, 1s: {count['1']}")
